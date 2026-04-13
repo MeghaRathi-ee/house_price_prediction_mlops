@@ -1,0 +1,52 @@
+stages:
+  ingest:
+    cmd: python src/ingest.py
+    deps:
+      - src/ingest.py
+      - data/raw/house_price.csv
+    params:
+      - base
+      - data
+      - features
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+      - src/preprocess.py
+      - data/processed/train.csv
+      - data/processed/test.csv
+    params:
+      - base
+      - data
+      - features
+    outs:
+      - data/processed/preprocessor.pkl
+
+  train:
+    cmd: python src/train.py
+    deps:
+      - src/train.py
+      - data/processed/train.csv
+    params:
+      - base
+      - data
+      - model
+    outs:
+      - model.pkl
+
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+      - src/evaluate.py
+      - data/processed/test.csv
+      - model.pkl
+    params:
+      - base
+      - data
+      - evaluate
+    metrics:
+      - data/reports/metrics.json:
+          cache: false
