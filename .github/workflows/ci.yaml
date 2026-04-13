@@ -61,12 +61,14 @@ jobs:
       - name: Install DVC with pinned dependencies
         run: |
           pip install --upgrade pip
-          # Install scmrepo first with pinned pathspec
-          # scmrepo 1.4.1 uses pathspec 1.0.x correctly
-          pip install pathspec==1.0.4
-          pip install scmrepo==1.4.1
-          pip install dvc==2.58.2
-          pip install 'dvc[azure]'==2.58.2
+          # Force install exact versions — no upgrades allowed
+          pip install --no-deps pathspec==1.0.4
+          pip install --no-deps scmrepo==1.4.1
+          pip install --no-deps dvc==2.58.2
+          pip install azure-storage-blob azure-identity
+          pip install gitpython dulwich funcy tqdm rich
+          # Verify pathspec version
+          python -c "import pathspec; print('pathspec:', pathspec.__version__)"
           # Verify DVC works
           dvc --version
 
