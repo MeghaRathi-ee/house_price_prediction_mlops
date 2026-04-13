@@ -61,11 +61,10 @@ jobs:
       - name: Install DVC with pinned dependencies
         run: |
           pip install --upgrade pip
-          # Install DVC normally first (gets all deps)
-          pip install 'dvc[azure]==2.58.2'
-          # Force downgrade pathspec AFTER — this is the key fix
-          pip install pathspec==1.0.4 --force-reinstall
-          # Verify
+          # Use constraints file to lock pathspec==1.0.4
+          # pip will respect this constraint even when installing other packages
+          pip install 'dvc[azure]==2.58.2' -c constraints.txt
+          pip install pathspec==1.0.4 --force-reinstall --no-deps
           python -c "import pathspec; print('pathspec:', pathspec.__version__)"
           dvc --version
 
