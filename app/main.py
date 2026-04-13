@@ -2,32 +2,21 @@ import pickle
 import json
 import numpy as np
 import pandas as pd
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal
 
 
 # ─────────────────────────────────────────────
-# FastAPI app
+# Global artifacts — loaded once at startup
 # ─────────────────────────────────────────────
-app = FastAPI(
-    title       = "House Price Prediction API",
-    description = "Predicts house price given features. Built with FastAPI + MLOps pipeline.",
-    version     = "1.0.0"
-)
+model             = None
+preprocessor      = None
+outlier_bounds    = {}
+selected_features = None
 
 
-# ─────────────────────────────────────────────
-# Load artifacts once at startup
-# Not inside predict function — loading model
-# on every request would be very slow
-# ─────────────────────────────────────────────
-model            = None
-preprocessor     = None
-outlier_bounds   = {}
-selected_features= None
-
-@app.on_event("startup")
 def load_artifacts():
     global model, preprocessor, outlier_bounds, selected_features
 
@@ -48,14 +37,12 @@ def load_artifacts():
     try:
         with open("data/processed/outlier_bounds.json") as f:
             outlier_bounds = json.load(f)
-        print("[startup] outlier_bounds.json loaded")
     except FileNotFoundError:
         outlier_bounds = {}
 
     try:
         with open("data/processed/selected_features.json") as f:
             selected_features = json.load(f)["features"]
-        print("[startup] selected_features.json loaded")
     except FileNotFoundError:
         selected_features = None
 
@@ -63,32 +50,46 @@ def load_artifacts():
 
 
 # ─────────────────────────────────────────────
-# Input schema — Pydantic validates every field
-# Wrong type or missing field = 422 error auto
+# Lifespan — replaces deprecated on_event
+# ─────────────────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    load_artifacts()   # startup
+    yield
+    # shutdown — nothing to clean up
+
+
+# ─────────────────────────────────────────────
+# FastAPI app — defined BEFORE routes
+# ─────────────────────────────────────────────
+app = FastAPI(
+    lifespan    = lifespan,
+    title       = "House Price Prediction API",
+    description = "Predicts house price given features.",
+    version     = "1.0.0"
+)
+
+
+# ─────────────────────────────────────────────
+# Input schema
 # ─────────────────────────────────────────────
 class HouseFeatures(BaseModel):
-    Area      : int = Field(..., gt=0,            description="Area in sqft")
-    Bedrooms  : int = Field(..., ge=1, le=5,      description="Bedrooms (1-5)")
-    Bathrooms : int = Field(..., ge=1, le=4,      description="Bathrooms (1-4)")
-    Floors    : int = Field(..., ge=1, le=3,      description="Floors (1-3)")
-    YearBuilt : int = Field(..., ge=1900, le=2024,description="Year built")
-    Location  : Literal["Downtown","Suburban","Urban","Rural"]
-    Condition : Literal["Excellent","Good","Fair","Poor"]
-    Garage    : Literal["Yes","No"]
+    Area      : int = Field(..., gt=0,             description="Area in sqft")
+    Bedrooms  : int = Field(..., ge=1, le=5,       description="Bedrooms (1-5)")
+    Bathrooms : int = Field(..., ge=1, le=4,       description="Bathrooms (1-4)")
+    Floors    : int = Field(..., ge=1, le=3,       description="Floors (1-3)")
+    YearBuilt : int = Field(..., ge=1900, le=2024, description="Year built")
+    Location  : Literal["Downtown", "Suburban", "Urban", "Rural"]
+    Condition : Literal["Excellent", "Good", "Fair", "Poor"]
+    Garage    : Literal["Yes", "No"]
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "Area"     : 2500,
-                "Bedrooms" : 3,
-                "Bathrooms": 2,
-                "Floors"   : 2,
-                "YearBuilt": 1990,
-                "Location" : "Downtown",
-                "Condition": "Good",
-                "Garage"   : "Yes"
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "Area": 2500, "Bedrooms": 3, "Bathrooms": 2,
+            "Floors": 2, "YearBuilt": 1990,
+            "Location": "Downtown", "Condition": "Good", "Garage": "Yes"
         }
+    })
 
 
 # ─────────────────────────────────────────────
@@ -102,9 +103,7 @@ class PredictionResponse(BaseModel):
 
 
 # ─────────────────────────────────────────────
-# Feature engineering
-# MUST match preprocess.py exactly
-# If you change preprocess.py, update this too
+# Feature engineering — must match preprocess.py
 # ─────────────────────────────────────────────
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df["HouseAge"]    = 2026 - df["YearBuilt"]
@@ -155,50 +154,24 @@ def health():
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(features: HouseFeatures):
-    """
-    Predict house price.
-    Steps:
-    1. Convert input to DataFrame
-    2. Validate against outlier bounds
-    3. Apply feature engineering (same as preprocess.py)
-    4. Transform using fitted preprocessor
-    5. Predict log1p(Price)
-    6. Reverse with expm1 → actual price
-    7. Return formatted response
-    """
-    data = features.dict()
+    data = features.model_dump()
     df   = pd.DataFrame([data])
 
-    # Validate
     input_warnings = validate_input(data)
-
-    # Feature engineering
     df = engineer_features(df)
-
-    # Drop Id if present
     df.drop(columns=["Id"], inplace=True, errors="ignore")
 
     try:
-        # Preprocess
         X_processed  = preprocessor.transform(df)
 
-        # Reconstruct feature names so sklearn does not warn
         cat_cols_api = ["Location", "Condition", "Garage"]
-        ohe_features = preprocessor.named_transformers_["cat"]["encoder"].get_feature_names_out(cat_cols_api)
+        ohe_features = preprocessor.named_transformers_["cat"]["encoder"]\
+                       .get_feature_names_out(cat_cols_api)
         num_cols_api = [c for c in df.columns if c not in cat_cols_api]
         all_features = list(num_cols_api) + list(ohe_features)
         X_df         = pd.DataFrame(X_processed, columns=all_features)
 
-        # Predict log price
-        log_pred = model.predict(X_df)[0]
-
-
-
-
-
-
-
-        # Reverse log transform
+        log_pred        = model.predict(X_df)[0]
         predicted_price = float(np.expm1(log_pred))
 
     except Exception as e:
