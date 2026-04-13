@@ -47,8 +47,8 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pandas numpy scikit-learn pyyaml \
-                      mlflow fastapi uvicorn \
-                      xgboost lightgbm evidently
+                      mlflow==2.9.0 fastapi uvicorn \
+                      xgboost lightgbm evidently==0.4.33
 
       # Official DVC action — handles pathspec correctly
       - name: Setup DVC
