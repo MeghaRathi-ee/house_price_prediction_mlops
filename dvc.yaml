@@ -50,3 +50,19 @@ stages:
     metrics:
       - data/reports/metrics.json:
           cache: false
+
+  monitor:
+    cmd: python src/monitor.py
+    deps:
+      - src/monitor.py
+      - data/processed/train.csv
+      - model.pkl
+    params:
+      - base
+      - data
+      - monitoring
+    outs:
+      - data/reports/drift_report.html:
+          cache: false
+      - data/reports/retrain_trigger.json:
+          cache: false

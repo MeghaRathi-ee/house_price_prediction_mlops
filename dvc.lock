@@ -165,3 +165,40 @@ stages:
       hash: md5
       md5: d874c3db9f6e22fbdc574d4a75a8097b
       size: 127
+  monitor:
+    cmd: python src/monitor.py
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 1ad3228dc581f87738febfb1bab4ae9a
+      size: 267561
+    - path: model.pkl
+      hash: md5
+      md5: 934a6f008de9ae8ff019cfd784574780
+      size: 1027
+    - path: src/monitor.py
+      hash: md5
+      md5: 993b980c843eea2dd5dfbea2ac25d136
+      size: 8718
+    params:
+      params.yaml:
+        base:
+          random_state: 42
+          target: Price
+        data:
+          test_size: 0.2
+          raw_path: data/raw/house_price.csv
+          processed_train: data/processed/train.csv
+          processed_test: data/processed/test.csv
+        monitoring:
+          drift_threshold: 0.05
+          report_path: data/reports/drift_report.html
+    outs:
+    - path: data/reports/drift_report.html
+      hash: md5
+      md5: 1c936373d97d7182bf7ffb6af9f0d39a
+      size: 3671533
+    - path: data/reports/retrain_trigger.json
+      hash: md5
+      md5: f8e2f4f21ddfccb2c3502be994f3b828
+      size: 236
