@@ -172,7 +172,9 @@ jobs:
           python-version: "3.10"
 
       - name: Install DVC
-        run: pip install dvc[azure]
+        run: |
+          pip install pathspec==1.0.4
+          pip install 'dvc[azure]'==2.58.2
 
       - name: Pull model artifacts
         run: |
