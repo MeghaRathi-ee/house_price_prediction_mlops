@@ -196,9 +196,9 @@ stages:
     outs:
     - path: data/reports/drift_report.html
       hash: md5
-      md5: 0642f074838320944584df9b2a305b61
-      size: 3666150
+      md5: c3d1b9540ce8fd111abb536635a43419
+      size: 3671532
     - path: data/reports/retrain_trigger.json
       hash: md5
-      md5: 4b3286c9df5f7fd2d13604fa858c71a4
+      md5: b84447a2e8c694ddce58f0378e8a0e89
       size: 236
