@@ -241,10 +241,9 @@ def train():
             # This is used for model serving and validation
             signature = infer_signature(X_train, model.predict(X_train))
             mlflow.sklearn.log_model(
-                sk_model        = model,
-                artifact_path   = "model",
-                signature       = signature,
-                input_example   = X_train.iloc[:3]
+                sk_model      = model,
+                artifact_path = "model",
+                signature     = signature
             )
 
             # Log feature importances for tree models
