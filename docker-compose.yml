@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────
+# docker-compose.yml
+# Runs the FastAPI app as a Docker service
+# Useful for local development and testing
+# ─────────────────────────────────────────────
+version: "3.8"
+
+services:
+  api:
+    # Build from local Dockerfile
+    build: .
+
+    # Container name
+    container_name: house_price_api
+
+    # Map host port 8000 → container port 8000
+    # Access API at http://localhost:8000
+    ports:
+      - "8000:8000"
+
+    # Restart automatically if container crashes
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      - PYTHONUNBUFFERED=1    # print logs immediately, no buffering
+
+    # Mount data directory for easy updates
+    # without rebuilding image
+    volumes:
+      - ./data/processed:/app/data/processed
+      - ./model.pkl:/app/model.pkl
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

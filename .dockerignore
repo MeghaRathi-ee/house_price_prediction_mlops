@@ -1,0 +1,13 @@
+.git/
+.dvc/
+mlruns/
+mlartifacts/
+__pycache__/
+*.pyc
+.env
+venv/
+.DS_Store
+data/raw/
+notebooks/
+dags/
+*.md
