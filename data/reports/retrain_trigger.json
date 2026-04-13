@@ -1,0 +1,10 @@
+{
+    "timestamp": "2026-04-13T21:19:44.753094",
+    "should_retrain": true,
+    "reason": [
+        "Share of drifted columns 15.00% > threshold 0.05"
+    ],
+    "drifted_columns": [],
+    "share_drifted": 0.15,
+    "threshold": 0.05
+}
